@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Targets - Clerk Mains</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --primary: #6366f1;
+            --accent: #22c55e;
+            --text: #f8fafc;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Loading Spinner */
+        #loader {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 50px auto;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #target-container {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .target-card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .target-card:hover {
+            transform: translateY(-3px);
+            background: #2d3748;
+            border-color: var(--primary);
+        }
+
+        .date-info h3 { margin: 0; font-size: 1.2rem; text-transform: capitalize; }
+        .date-info p { margin: 5px 0 0; color: #94a3b8; font-size: 0.85rem; }
+
+        .new-badge {
+            background: var(--accent);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        #load-more {
+            background: rgba(255,255,255,0.05);
+            color: var(--text);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 12px 25px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 20px 0;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div style="text-align:center; margin-bottom:40px;">
+        <h1 style="font-size: 2.5rem; margin-bottom: 10px;">Daily Targets</h1>
+        <p style="color: #94a3b8;">Clerk Mains Practice Portal</p>
+    </div>
+
+    <div id="loader"></div>
+    <div id="target-container"></div>
+    <button id="load-more">Show Older Targets</button>
+
+    <script>
+        let checkDate = new Date(); // Starts from today
+        let loadedCount = 0;
+        const batchSize = 7;
+        const container = document.getElementById('target-container');
+        const loader = document.getElementById('loader');
+        const loadMoreBtn = document.getElementById('load-more');
+        
+        let clickedItems = JSON.parse(localStorage.getItem('clerk_clicked_targets')) || [];
+
+        // Helper to format date to "28-April-2026"
+        function formatDate(date) {
+            const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            return `${date.getDate()}-${months[date.getMonth()]}-${date.getFullYear()}`;
+        }
+
+        // The Magic: Checks if the HTML file actually exists on your server
+        async function fileExists(url) {
+            try {
+                const response = await fetch(url, { method: 'HEAD' });
+                return response.ok;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        async function loadBatch() {
+            loader.style.display = 'block';
+            loadMoreBtn.style.display = 'none';
+            let foundInThisBatch = 0;
+            let attempts = 0;
+            const maxAttempts = 30; // Stop searching if no files found in last 30 days
+
+            while (foundInThisBatch < batchSize && attempts < maxAttempts) {
+                let dateStr = formatDate(checkDate);
+                let fileName = `${dateStr}.html`;
+
+                if (await fileExists(fileName)) {
+                    createCard(dateStr, fileName);
+                    foundInThisBatch++;
+                    attempts = 0; // Reset attempts if we find a file
+                } else {
+                    attempts++;
+                }
+
+                // Move to previous day
+                checkDate.setDate(checkDate.getDate() - 1);
+            }
+
+            loader.style.display = 'none';
+            if (foundInThisBatch === batchSize) {
+                loadMoreBtn.style.display = 'block';
+            }
+        }
+
+        function createCard(dateStr, fileName) {
+            const isNew = !clickedItems.includes(dateStr);
+            const card = document.createElement('div');
+            card.className = 'target-card';
+            card.innerHTML = `
+                <div class="date-info">
+                    <h3>${dateStr.replace(/-/g, ' ')}</h3>
+                    <p>Mains Level Mock Test • Clerk</p>
+                </div>
+                ${isNew ? `<div class="new-badge" id="badge-${dateStr}">NEW</div>` : ''}
+            `;
+
+            card.onclick = () => {
+                if (!clickedItems.includes(dateStr)) {
+                    clickedItems.push(dateStr);
+                    localStorage.setItem('clerk_clicked_targets', JSON.stringify(clickedItems));
+                }
+                window.location.href = fileName;
+            };
+
+            container.appendChild(card);
+        }
+
+        // Start the process
+        loadBatch();
+
+        loadMoreBtn.onclick = loadBatch;
+    </script>
+</body>
+</html>
+
